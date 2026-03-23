@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="A Matrix">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>MATRIX — ESCOLHA</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;color:#00ff41;}
+
+/* Matrix rain canvas */
+#matrix-canvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  z-index:0;opacity:0.85;
+}
+
+/* Main UI */
+#ui{
+  position:relative;z-index:10;
+  width:100%;max-width:520px;
+  display:flex;flex-direction:column;
+  align-items:center;
+  padding:20px 16px;
+  gap:0;
+}
+
+/* Title */
+#title-wrap{
+  text-align:center;
+  margin-bottom:28px;
+}
+#title-main{
+  font-family:'Orbitron',sans-serif;
+  font-weight:900;
+  font-size:clamp(1.4rem,6vw,2.2rem);
+  letter-spacing:0.25em;
+  color:#00ff41;
+  text-shadow:0 0 20px #00ff41, 0 0 40px #00bb30, 0 0 80px #008820;
+  line-height:1;
+}
+#title-sub{
+  font-size:clamp(0.55rem,2vw,0.7rem);
+  letter-spacing:0.3em;
+  color:rgba(0,255,65,0.45);
+  margin-top:8px;
+  text-transform:uppercase;
+}
+#title-quote{
+  font-size:clamp(0.58rem,2.2vw,0.72rem);
+  color:rgba(0,255,65,0.35);
+  margin-top:12px;
+  font-style:italic;
+  letter-spacing:0.1em;
+  line-height:1.6;
+}
+
+/* Message box */
+#msg-box{
+  width:100%;
+  min-height:140px;
+  background:rgba(0,0,0,0.82);
+  border:1px solid rgba(0,255,65,0.2);
+  padding:20px 18px;
+  margin-bottom:32px;
+  position:relative;
+  transition:border-color 0.4s;
+}
+#msg-box.red-mode{ border-color:rgba(255,50,50,0.6); box-shadow:0 0 30px rgba(255,30,30,0.15); }
+#msg-box.blue-mode{ border-color:rgba(50,120,255,0.6); box-shadow:0 0 30px rgba(50,120,255,0.15); }
+
+#msg-label{
+  font-size:0.5rem;
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+  color:rgba(0,255,65,0.3);
+  margin-bottom:10px;
+}
+#msg-label.red{ color:rgba(255,80,80,0.7); }
+#msg-label.blue{ color:rgba(80,140,255,0.7); }
+
+#msg-text{
+  font-size:clamp(0.78rem,2.8vw,1rem);
+  line-height:1.75;
+  color:#e8ffe8;
+  letter-spacing:0.06em;
+  min-height:80px;
+  display:flex;align-items:center;
+}
+#msg-text.red-text{ color:#ffe8e8; }
+#msg-text.blue-text{ color:#e8eeff; }
+
+/* Corner decorations */
+.corner{position:absolute;width:14px;height:14px;border-color:inherit;border-style:solid;}
+.corner.tl{top:-1px;left:-1px;border-width:2px 0 0 2px;}
+.corner.tr{top:-1px;right:-1px;border-width:2px 2px 0 0;}
+.corner.bl{bottom:-1px;left:-1px;border-width:0 0 2px 2px;}
+.corner.br{bottom:-1px;right:-1px;border-width:0 2px 2px 0;}
+
+/* Typing cursor */
+#cursor{
+  display:inline-block;
+  width:2px;height:1em;
+  background:#00ff41;
+  margin-left:3px;
+  vertical-align:middle;
+  animation:blink 0.7s step-end infinite;
+}
+#cursor.red{background:#ff5050;}
+#cursor.blue{background:#5090ff;}
+@keyframes blink{50%{opacity:0;}}
+
+/* Pills */
+#pills-wrap{
+  display:flex;
+  gap:clamp(24px,8vw,60px);
+  align-items:center;
+  justify-content:center;
+  margin-bottom:24px;
+}
+
+.pill-btn{
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform 0.15s;
+}
+.pill-btn:active{ transform:scale(0.93); }
+
+.pill{
+  width:clamp(52px,14vw,72px);
+  height:clamp(24px,6.5vw,34px);
+  border-radius:100px;
+  position:relative;
+  transition:all 0.2s;
+  box-shadow:0 4px 20px currentColor;
+}
+
+.pill::before{
+  content:'';
+  position:absolute;
+  top:20%;left:12%;
+  width:35%;height:35%;
+  background:rgba(255,255,255,0.35);
+  border-radius:50%;
+  transform:rotate(-30deg);
+}
+
+.pill-red{
+  background:linear-gradient(135deg,#ff1a1a,#cc0000,#880000);
+  color:rgba(255,40,40,0.6);
+  border:1px solid rgba(255,80,80,0.4);
+}
+.pill-red:hover,.pill-red:focus{
+  box-shadow:0 0 30px rgba(255,40,40,0.8), 0 0 60px rgba(255,40,40,0.3);
+  transform:scale(1.08) translateY(-2px);
+}
+
+.pill-blue{
+  background:linear-gradient(135deg,#1a60ff,#0033cc,#001888);
+  color:rgba(50,120,255,0.6);
+  border:1px solid rgba(80,140,255,0.4);
+}
+.pill-blue:hover,.pill-blue:focus{
+  box-shadow:0 0 30px rgba(50,120,255,0.8), 0 0 60px rgba(50,120,255,0.3);
+  transform:scale(1.08) translateY(-2px);
+}
+
+.pill-label{
+  font-family:'Orbitron',sans-serif;
+  font-weight:700;
+  font-size:clamp(0.55rem,2vw,0.72rem);
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  line-height:1.3;
+  text-align:center;
+}
+.pill-label.red{ color:#ff5555; text-shadow:0 0 10px rgba(255,60,60,0.6); }
+.pill-label.blue{ color:#5599ff; text-shadow:0 0 10px rgba(60,120,255,0.6); }
+
+.pill-hint{
+  font-size:clamp(0.45rem,1.6vw,0.56rem);
+  letter-spacing:0.12em;
+  text-align:center;
+  line-height:1.5;
+}
+.pill-hint.red{ color:rgba(255,80,80,0.5); }
+.pill-hint.blue{ color:rgba(80,140,255,0.5); }
+
+/* Counter */
+#counter-wrap{
+  display:flex;gap:28px;
+  font-size:0.55rem;
+  letter-spacing:0.15em;
+  color:rgba(0,255,65,0.3);
+}
+.cnt-red{ color:rgba(255,80,80,0.45); }
+.cnt-blue{ color:rgba(80,140,255,0.45); }
+.cnt-num{ font-family:'Orbitron',sans-serif; font-size:0.75rem; }
+
+/* Glitch effect on message reveal */
+@keyframes glitch{
+  0%{transform:translateX(0);}
+  20%{transform:translateX(-3px);}
+  40%{transform:translateX(3px);}
+  60%{transform:translateX(-1px);}
+  80%{transform:translateX(1px);}
+  100%{transform:translateX(0);}
+}
+.glitch{ animation:glitch 0.25s ease-in-out; }
+
+/* Scan line overlay */
+#scanlines{
+  position:fixed;inset:0;z-index:5;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
+}
+
+/* Flash overlay */
+#flash{
+  position:fixed;inset:0;z-index:8;pointer-events:none;
+  opacity:0;transition:opacity 0.08s;
+}
+
+/* Morpheus quote bar */
+#morpheus-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  padding:8px 16px;
+  background:rgba(0,0,0,0.7);
+  border-top:1px solid rgba(0,255,65,0.08);
+  text-align:center;
+  font-size:clamp(0.45rem,1.5vw,0.55rem);
+  color:rgba(0,255,65,0.25);
+  letter-spacing:0.12em;
+  z-index:10;
+}
+</style>
+</head>
+<body>
+
+<canvas id="matrix-canvas"></canvas>
+<div id="scanlines"></div>
+<div id="flash"></div>
+
+<div id="ui">
+  <div id="title-wrap">
+    <div id="title-main">A MATRIX</div>
+    <div id="title-sub">Desvelador da Realidade</div>
+    <div id="title-quote">"Você tomou a pílula azul — a história termina.<br>Você tomou a pílula vermelha — fica no País das Maravilhas."</div>
+  </div>
+
+  <div id="msg-box">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+    <div id="msg-label">// AGUARDANDO ESCOLHA</div>
+    <div id="msg-text">
+      Escolha sua pílula. Cada uma revela um lado diferente da mesma realidade.<span id="cursor"></span>
+    </div>
+  </div>
+
+  <div id="pills-wrap">
+    <div class="pill-btn" id="btn-red" tabindex="0">
+      <div class="pill pill-red"></div>
+      <div class="pill-label red">PÍLULA<br>VERMELHA</div>
+      <div class="pill-hint red">A verdade<br>que dói</div>
+    </div>
+
+    <div class="pill-btn" id="btn-blue" tabindex="0">
+      <div class="pill pill-blue"></div>
+      <div class="pill-label blue">PÍLULA<br>AZUL</div>
+      <div class="pill-hint blue">A mentira<br>confortável</div>
+    </div>
+  </div>
+
+  <div id="counter-wrap">
+    <span class="cnt-red">VERDADES: <span class="cnt-num" id="cnt-red">0</span></span>
+    <span class="cnt-blue">MENTIRAS: <span class="cnt-num" id="cnt-blue">0</span></span>
+  </div>
+</div>
+
+<div id="morpheus-bar" id="morpheus-bar">
+  — Morpheus · Matrix (1999) · "A Matrix é em todo lugar. Está ao seu redor."
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  MATRIX — DESVELADOR DA REALIDADE
+// ════════════════════════════════════════════════
+
+// ── Matrix Rain ──────────────────────────────────
+const mc  = document.getElementById('matrix-canvas');
+const mctx= mc.getContext('2d');
+let cols=[], drops=[];
+const CHARS='アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF@#$%&*<>{}[]|/\\';
+
+function initMatrix(){
+  mc.width=window.innerWidth; mc.height=window.innerHeight;
+  const fs=Math.round(14*Math.min(window.innerWidth/400,1));
+  cols=Math.floor(mc.width/fs);
+  drops=Array.from({length:cols},()=>Math.random()*-50);
+  return fs;
+}
+
+let matrixFS=initMatrix();
+window.addEventListener('resize',()=>{ matrixFS=initMatrix(); });
+
+function drawMatrix(){
+  mctx.fillStyle='rgba(0,0,0,0.055)';
+  mctx.fillRect(0,0,mc.width,mc.height);
+  for(let i=0;i<cols;i++){
+    const ch=CHARS[Math.floor(Math.random()*CHARS.length)];
+    const x=i*matrixFS;
+    const y=drops[i]*matrixFS;
+    // Head char (bright)
+    mctx.fillStyle='#afffaf';
+    mctx.font=`bold ${matrixFS}px 'Share Tech Mono'`;
+    mctx.fillText(ch,x,y);
+    // Body (dim green)
+    mctx.fillStyle='#00ff41';
+    mctx.font=`${matrixFS}px 'Share Tech Mono'`;
+    mctx.fillText(CHARS[Math.floor(Math.random()*CHARS.length)],x,y-matrixFS);
+    if(y>mc.height&&Math.random()>0.975) drops[i]=0;
+    drops[i]+=0.5;
+  }
+}
+
+// ── Truth Messages (Pílula Vermelha) ─────────────
+const RED_MSGS = [
+  {
+    label:'// SISTEMA ECONÔMICO',
+    text:'O dinheiro que você usa não tem lastro em nada real desde 1971. Governos imprimem trilhões do nada — e quem paga a conta é o poder de compra do seu salário, corroído silenciosamente pela inflação.'
+  },
+  {
+    label:'// TEMPO × DINHEIRO',
+    text:'Você não trabalha por dinheiro. Você troca horas insubstituíveis da sua vida por números numa tela. A aposentadoria foi inventada para que você descanse só quando seu corpo não aguentar mais.'
+  },
+  {
+    label:'// MÍDIA & ATENÇÃO',
+    text:'Cada notícia que te indigna foi calculada para isso. O medo e a raiva liberam dopamina. Plataformas digitais são projetadas por psicólogos para manter você ansioso, consumindo e incapaz de pensar com clareza.'
+  },
+  {
+    label:'// SISTEMA EDUCACIONAL',
+    text:'A escola foi modelada no século XIX para produzir trabalhadores obedientes para fábricas. Memorização, horário fixo, sino tocando — você foi treinado para executar ordens, não para pensar.'
+  },
+  {
+    label:'// SAÚDE & INDÚSTRIA',
+    text:'Tratamentos que curam não geram lucro recorrente. O modelo de negócio da indústria farmacêutica é o paciente crônico — aquele que compra remédio todo mês, pelo resto da vida. Cura é ruim para o negócio.'
+  },
+  {
+    label:'// REDES SOCIAIS',
+    text:'Você não é o usuário. Você é o produto. Seus medos, desejos e inseguranças são vendidos em tempo real para anunciantes. Cada like validado e cada comparação dolorosa foi cuidadosamente programada.'
+  },
+  {
+    label:'// POLÍTICA & ILUSÃO',
+    text:'Esquerda e direita são duas alavancas no mesmo painel. Enquanto você debate política com estranhos na internet, as decisões reais sobre sua vida são tomadas por pessoas cujos nomes você nunca vai votar.'
+  },
+  {
+    label:'// CONSUMO & IDENTIDADE',
+    text:'Você foi convencido de que comprar coisas expressa quem você é. Marcas vendem identidade, pertencimento e status. Você trabalha décadas para encher uma casa com objetos que nunca vão preencher o vazio que eles criaram.'
+  },
+  {
+    label:'// TEMPO LIVRE & CONTROLE',
+    text:'O entretenimento não é descanso — é administração do seu tempo livre. Séries infinitas, jogos viciantes e feeds sem fim garantem que você nunca fique em silêncio tempo suficiente para questionar qualquer coisa.'
+  },
+  {
+    label:'// DÍVIDA & ESCRAVIDÃO',
+    text:'A dívida é a corrente moderna. Financiamento, cartão, crédito — cada parcela é um mês da sua liberdade vendido antecipadamente. O sistema precisa que você esteja sempre devendo para que nunca tenha escolha.'
+  },
+  {
+    label:'// ALIMENTAÇÃO INDUSTRIAL',
+    text:'Ultraprocessados foram projetados em laboratório para vencer seu instinto de saciedade. Açúcar, sal e gordura na proporção exata para criar dependência. Você não tem fome — você foi programado para ter.'
+  },
+  {
+    label:'// SONHO COLETIVO',
+    text:'A maioria das crenças que você tem sobre sucesso, beleza, família e felicidade não veio de você. Foram instaladas por publicidade, novela, escola e tradição antes que você tivesse idade para questionar.'
+  },
+  {
+    label:'// GUERRA & INTERESSE',
+    text:'Guerras não começam por ódio entre povos. Começam quando as contas de quem financia os dois lados fecham. O soldado morre com um ideal. O contratante assina o próximo contrato.'
+  },
+  {
+    label:'// LIBERDADE DIGITAL',
+    text:'Seu celular sabe onde você dorme, com quem, o que você come, o que te excita, o que te assusta e o que você está cogitando comprar. E você paga por ele, carrega voluntariamente e o coloca ao lado da cama.'
+  },
+  {
+    label:'// DESPERTAR',
+    text:'Questionar tudo isso não é loucura — é o começo da lucidez. A matrix só funciona enquanto você acredita que ela é a realidade. Toda mudança real começa quando alguém pergunta: "E se eu estiver vivendo uma mentira?"'
+  },
+];
+
+// ── Blue Pill Messages (Mentiras Confortáveis) ────
+const BLUE_MSGS = [
+  {
+    label:'// ZONA DE CONFORTO',
+    text:'"Trabalhe duro, seja honesto e um dia você será recompensado." O sistema é justo. Quem chegou lá cima mereceu. Quem ficou para trás não se esforçou o suficiente. Descanse. Tudo vai ficar bem.'
+  },
+  {
+    label:'// NARRATIVA DO SUCESSO',
+    text:'"Se você quiser muito, consegue." Sonhe grande, acredite em você, visualize o sucesso. Os ricos merecem o que têm. Os pobres só precisam de mais força de vontade. O sistema funciona para quem trabalha.'
+  },
+  {
+    label:'// POLÍTICA & ESPERANÇA',
+    text:'"Dessa vez vai ser diferente." O candidato certo vai mudar tudo. O partido bom vai vencer. Em quatro anos, o país melhora. Basta votar certo. O sistema democrático protege você. Confie no processo.'
+  },
+  {
+    label:'// MÍDIA CONFIÁVEL',
+    text:'"As notícias são checadas e imparciais." O jornal de sempre é sério. A TV não mente. As redes sociais têm verificadores de fatos. Alguém está olhando pelo bem comum. Você pode confiar no que assiste.'
+  },
+  {
+    label:'// SAÚDE EM BOAS MÃOS',
+    text:'"Os médicos e as farmacêuticas querem que você melhore." A ciência é neutra. Os remédios foram testados para te curar. O sistema de saúde existe para te proteger. Tome o que receitaram e não pergunte.'
+  },
+  {
+    label:'// FELICIDADE À VENDA',
+    text:'"Com a próxima compra você vai se sentir melhor." O carro novo, a casa maior, as férias perfeitas. Você merece. Parcele sem juros. Quando chegar lá, você vai ser feliz. Só mais uma compra.'
+  },
+  {
+    label:'// EDUCAÇÃO SALVADORA',
+    text:'"Estude, faça uma boa faculdade e a vida estará garantida." O diploma abre portas. O conhecimento é neutro. A escola prepara você para o mundo. Siga o roteiro e tudo fará sentido no final.'
+  },
+  {
+    label:'// REDES SOCIAIS SÃO DIVERSÃO',
+    text:'"É só entretenimento." Todo mundo está fazendo isso. Não faz mal nenhum. É só para relaxar. Você ainda controla quanto tempo passa online. Você pode parar quando quiser. É inofensivo.'
+  },
+  {
+    label:'// SEGURANÇA NA DÍVIDA',
+    text:'"Todo mundo tem dívidas, é normal." O financiamento é a única forma de ter as coisas. O crédito facilita sua vida. Pagar juros faz parte. Em algum momento você quita tudo. É assim que funciona.'
+  },
+  {
+    label:'// GOVERNO PROTETOR',
+    text:'"O Estado existe para te proteger." As leis são feitas para o povo. Os impostos voltam em serviços. Quem governa foi eleito e presta contas. Confie nas instituições. Elas foram criadas para funcionar.'
+  },
+  {
+    label:'// COMIDA É SÓ COMIDA',
+    text:'"Tudo bem com moderação." Um pouquinho não faz mal. A indústria alimentícia passa por testes. Os ingredientes são regulados. Se fosse perigoso, não venderia. Coma o que te dá prazer. Você merece.'
+  },
+  {
+    label:'// PROGRESSO GARANTIDO',
+    text:'"O mundo está melhorando." A tecnologia vai resolver tudo. As próximas gerações vão ter uma vida melhor. A humanidade aprende com seus erros. Estamos no caminho certo. O futuro é brilhante.'
+  },
+  {
+    label:'// GUERRA É NECESSÁRIA',
+    text:'"Às vezes a guerra é necessária para manter a paz." Nossos soldados protegem nossa liberdade. O inimigo é real e nos quer mal. É complicado, você não entenderia. Confie em quem sabe mais.'
+  },
+  {
+    label:'// PRIVACIDADE GARANTIDA',
+    text:'"Eu não tenho nada a esconder." Se você não fez nada errado, não tem o que temer. Os dados são anonimizados. As empresas têm políticas de privacidade. Ninguém está te vigiando. Relaxa.'
+  },
+  {
+    label:'// SONHO ADORMECIDO',
+    text:'"Não pense demais, vai enlouquecer." Deixa pra lá. Você não pode mudar o sistema. Cuida da sua vida. Foca no que você pode controlar. Seja grato pelo que tem. Durma bem. Amanhã é outro dia.'
+  },
+];
+
+// ── State ─────────────────────────────────────────
+let cntRed=0, cntBlue=0;
+let isTyping=false;
+let typeTimeout=null;
+let currentMode='none';
+let usedRed=[], usedBlue=[];
+
+function getRandom(arr, used){
+  if(used.length>=arr.length) used.length=0;
+  let idx;
+  do{ idx=Math.floor(Math.random()*arr.length); }while(used.includes(idx));
+  used.push(idx);
+  return arr[idx];
+}
+
+// ── Flash ─────────────────────────────────────────
+function flash(color){
+  const el=document.getElementById('flash');
+  el.style.background=color;
+  el.style.opacity=0.35;
+  setTimeout(()=>el.style.opacity=0, 120);
+}
+
+// ── Typing effect ─────────────────────────────────
+function typeText(text, targetEl, cursor, speed=28, onDone){
+  if(typeTimeout) clearTimeout(typeTimeout);
+  targetEl.innerHTML='';
+  targetEl.appendChild(cursor);
+  isTyping=true;
+  let i=0;
+  function step(){
+    if(i<text.length){
+      const node=document.createTextNode(text[i]);
+      targetEl.insertBefore(node, cursor);
+      i++;
+      typeTimeout=setTimeout(step, speed + Math.random()*15);
+    } else {
+      isTyping=false;
+      if(onDone) onDone();
+    }
+  }
+  step();
+}
+
+// ── Pill actions ──────────────────────────────────
+const msgBox   = document.getElementById('msg-box');
+const msgLabel = document.getElementById('msg-label');
+const msgText  = document.getElementById('msg-text');
+const cursor   = document.getElementById('cursor');
+const morphBar = document.getElementById('morpheus-bar');
+
+const morpheusQuotes=[
+  '"A Matrix é em todo lugar. Está ao seu redor, mesmo agora nesta sala."',
+  '"Infelizmente, é impossível explicar o que é a Matrix. Você tem que ver por si mesmo."',
+  '"Você tomou a pílula vermelha e ficou no País das Maravilhas."',
+  '"Eu te mostrei a porta. Cabe a você abri-la."',
+  '"Não há colher." — O menino Oráculo',
+  '"Liberte sua mente." — Morpheus',
+  '"Todos vocês são prisioneiros. Todos vocês nasceram em correntes."',
+  '"O que é real? Como você define real?"',
+  '"Cedo ou tarde você vai perceber que há uma diferença entre conhecer o caminho e caminhar o caminho."',
+  '"Você está aqui porque você sabe alguma coisa. O que você sabe, não consegue explicar."',
+];
+let mqIdx=0;
+setInterval(()=>{
+  morphBar.textContent='— '+morpheusQuotes[mqIdx%morpheusQuotes.length];
+  mqIdx++;
+},6000);
+
+function revealRed(){
+  const msg=getRandom(RED_MSGS,usedRed);
+  cntRed++;
+  document.getElementById('cnt-red').textContent=cntRed;
+
+  flash('rgba(200,0,0,0.4)');
+  msgBox.className='red-mode';
+  msgLabel.className='red';
+  msgLabel.textContent=msg.label;
+
+  msgText.className='red-text';
+  cursor.className='red';
+  msgText.innerHTML='';
+  msgText.appendChild(cursor);
+
+  msgBox.classList.add('glitch');
+  setTimeout(()=>msgBox.classList.remove('glitch'),300);
+
+  typeText(msg.text, msgText, cursor, 22);
+}
+
+function revealBlue(){
+  const msg=getRandom(BLUE_MSGS,usedBlue);
+  cntBlue++;
+  document.getElementById('cnt-blue').textContent=cntBlue;
+
+  flash('rgba(0,60,200,0.4)');
+  msgBox.className='blue-mode';
+  msgLabel.className='blue';
+  msgLabel.textContent=msg.label;
+
+  msgText.className='blue-text';
+  cursor.className='blue';
+  msgText.innerHTML='';
+  msgText.appendChild(cursor);
+
+  msgBox.classList.add('glitch');
+  setTimeout(()=>msgBox.classList.remove('glitch'),300);
+
+  typeText(msg.text, msgText, cursor, 22);
+}
+
+document.getElementById('btn-red').addEventListener('click', revealRed);
+document.getElementById('btn-blue').addEventListener('click', revealBlue);
+document.getElementById('btn-red').addEventListener('touchstart',e=>{e.preventDefault();revealRed();},{passive:false});
+document.getElementById('btn-blue').addEventListener('touchstart',e=>{e.preventDefault();revealBlue();},{passive:false});
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  if(e.code==='KeyR'||e.code==='ArrowLeft') revealRed();
+  if(e.code==='KeyB'||e.code==='ArrowRight') revealBlue();
+});
+
+// ── Animation loop ────────────────────────────────
+function loop(){
+  drawMatrix();
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ── PWA Service Worker ────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
